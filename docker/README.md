@@ -317,7 +317,138 @@ not propagate the `SIGTERM` to its child processes.
 
 ## Volumes
 
+> Docker volumes reference: 
+> https://docs.docker.com/storage/volumes/
+
+Volumse are used to share data between containers and/or persist data across
+different container executions. Without volumes the data stored in containers is
+lost as soon as the container is removed.
+
+E.g. If we containerize a database, we would most likely want the database
+data persisted.
+
+We can manage volumes specifically with the `docker volumes` CLI, or they can be
+created automatically when passing the `-v` option to the `docker run` command.
+When passing the `-v` option, there are 3 colon seperated fields:
+
+1. Name of the volume / host directory path
+2. Container mount path
+3. Mount options (read, read/write, ...)
+
 ### Demo
+
+We are going to resort to a simple Dockerfile to experiment with Docker volumes: 
+```Dockerfile
+# Dockerfile
+
+FROM busybox:latest
+
+RUN mkdir -p /usr/src/data && \
+    touch /usr/src/data/save_file && \
+    echo "first line" >> /usr/src/data/save_file
+
+VOLUME ["/usr/src/data"]
+
+WORKDIR /usr/src/app
+COPY entrypoint.sh .
+
+CMD ["./entrypoint.sh", "../data/save_file"]
+```
+
+We start by creating a directory `/usr/src/data`, create a new file `save_file`,
+and write "first line" to the newly created file.
+
+The `VOLUME` instruction serves as documentation as to what directory we expect
+will be mounted.
+
+We then copy the `entrypoint.sh` script to the `/usr/src/app` directory.
+
+The script has the following structure: 
+```bash
+#!/bin/sh
+# entrypoint.sh
+
+function terminate {
+  echo "terminating"
+  exit 0
+}
+
+trap terminate SIGTERM SIGINT
+
+echo "reading $1"
+tail -f $1 &
+wait
+```
+
+We now build our image with: 
+```bash
+docker build -t t2i .
+```
+
+The first container we will run, will simply run the entrypoint script, which is
+reading the data that is being written to the `/usr/src/data/save_file` (as a
+result of the CMD instruction in the dockerfile). To run it, execute:
+```bash
+docker run \
+    -d --rm \
+    --name t2c-1 \
+    --volume t2v:/usr/src/data \
+    t2i
+```
+
+As for our second container, because we will be passing arguments to the `docker
+run` command, the `CMD` instruction is ignored, effectively `exec`ing what we
+pass as arguments. This happens to be a bash instruction `echo "sharing" >>
+../data/save_file`. 
+
+```bash
+docker run \
+    -d --rm \
+    --name t2c-2 \
+    --volume t2v:/usr/src/data \
+    t2i \
+    /bin/sh -c 'echo "sharing" >> ../data/save_file'
+```
+
+If our intuition about volumes is correct then because we are sharing the same
+volume between both containers, the first container should be able to see the
+data that has been written by this second command. Run the following command to
+validate whether this is the case: 
+```bash
+docker logs -f t2c-2
+```
+
+Alternatively, instead of using docker's named volumes, we could indicate the
+volume to be a directory in our host's filesystem. We can do this with the
+following command: 
+```bash
+docker run \
+    -d --rm \
+    --name t2c-1 \
+    --volume $(pwd)/data:/usr/src/data \
+    t2i
+```
+
+We can run our second container now with the command:
+```bash
+docker run \
+    -d --rm \
+    --name t2c-2 \
+    --volume "$(pwd)/data":/usr/src/data \
+    t2i \
+    /bin/sh -c 'echo "hello" >> ../data/save_file'
+```
+
+We can also read the data that has been written to our host file:
+```bash
+cat ./data/save_file
+```
+
+To clean our setup we can run:
+```bash
+docker stop t2c-1
+docker volume rm t2v
+```
 
 ## Networks
 
