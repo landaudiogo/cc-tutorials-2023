@@ -452,4 +452,91 @@ docker volume rm t2v
 
 ## Networks
 
+The docker engine container runtime provides some isolation between the
+containers and the other processes running in the host. It then follows that to
+communicate with a container, depending on where the communication is
+initiating, it might require some configuration.
+
+Docker by default adds containers to its default bridge docker0. The containers
+in the same bridge can communicate with one another through their IP addresses,
+but, through user-defined bridges, containers can talk to one another via their
+container names instead.
+
+Our goals with the last part of this demo will be: 
+
+- Communicating with our container through our host
+- Communicating between 2 containers on the same bridge (network)
+
 ### Demo
+
+We will start with trying to connect to our server through our host. We will
+create a server listening on port 1234: 
+```Dockerfile
+# Dockerfile-server
+FROM busybox:latest
+
+ENTRYPOINT nc -l -p 1234 -v
+```
+
+We first build and start our server with: 
+```bash
+docker build -t t3i -f Dockerfile-server .
+docker run -d --rm --name t3c-server -p 3001:1234 t3i
+```
+
+To connect to our server from our host, run:
+```bash
+curl localhost:3001
+```
+
+The `-p 3000:1234` option is what connects our host's port `3000` to our
+container's port `1234`. Without this option, we would not be able to
+communicate with our container from our host. 
+
+To communicate between 2 containers, we will start our server again with the
+following command: 
+```bash
+docker run -d --rm --name t3c-server t3i
+```
+
+Because we are not specifying a network for the container to connect to, it is
+added to the default bridge. All containers in the default bridge can
+communicate with one another only with the other container's IP addresses. 
+
+To find our server's ip address, we run:
+```bash
+docker inspect t3c-server | grep IPAddress
+# "SecondaryIPAddresses": null,
+# "IPAddress": "172.17.0.3",
+#       "IPAddress": "172.17.0.3",
+```
+
+Our client will now run curl to make a request to our server:
+```bash
+docker build -t t3i-client -f Dockerfile-client .
+docker run --rm --name t3c-client t3i-client 172.17.0.3:1234
+```
+
+To allow communicating between our containers based on their names, we have to
+add the containers on the same network. As such we first create our network, and
+add our server to the network: 
+
+```bash
+docker network create t3n
+docker run -d --rm --name t3c-server --network t3n t3i
+```
+
+We now can run our client, add it to the same network and connect to the server
+based on the name we gave it: 
+```bash
+docker run --rm --network t3n --name t3c-client t3i-client t3c-server:1234
+```
+
+We can now remove the network: 
+```bash
+docker network rm t3n
+```
+
+# Assignment
+
+
