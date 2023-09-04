@@ -584,7 +584,7 @@ The lab assignment has the following requirements:
    ```bash
    # sudo apt update
    # sudo apt install build-essential
-   ```.
+   ```
 1. Create a shortlived container that sends a request to the
    `notifications-service`. On start, this container should query the
    `notifications-service`, print the result and store the result on a persistent
