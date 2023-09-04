@@ -49,6 +49,11 @@ system.
 
 ## Installation
 
+Connect to your EC2 instance: 
+```bash
+ssh -i <your-pem-file> ubuntu@<VM-public IP>
+```
+
 > We will mostly follow this reference: 
 > https://docs.docker.com/engine/install/ubuntu/
 
@@ -135,6 +140,16 @@ and `CMD` instructions; Getting an intuition of what an image and a container
 is.
 
 ### Demo
+
+Clone this git repository: 
+```bash
+git clone https://github.com/landaudiogo/cc-2023-tutorials.git
+```
+
+Change into the directory of our first demo:
+```bash
+cd cc-2023-tutorials/demo-1
+```
 
 We will use the following python script to understand some nuances when
 creating Dockerfiles.
@@ -317,6 +332,8 @@ not propagate the `SIGTERM` to its child processes.
 
 ## Volumes
 
+
+
 > Docker volumes reference: 
 > https://docs.docker.com/storage/volumes/
 
@@ -336,6 +353,11 @@ When passing the `-v` option, there are 3 colon seperated fields:
 3. Mount options (read, read/write, ...)
 
 ### Demo
+
+Change into the second demo's directory:
+```bash
+cd ../demo-2
+```
 
 We are going to resort to a simple Dockerfile to experiment with Docker volumes: 
 ```Dockerfile
@@ -469,6 +491,11 @@ Our goals with the last part of this demo will be:
 
 ### Demo
 
+Change into the third demo's directory:
+```bash
+cd ../demo-3
+```
+
 We will start with trying to connect to our server through our host. We will
 create a server listening on port 1234: 
 ```Dockerfile
@@ -539,4 +566,54 @@ docker network rm t3n
 
 # Assignment
 
+In the following
+[repository](https://github.com/landaudiogo/cc-assignment-2023), there are a
+set of services that will be useful for you to test your implementation for the
+assignment. One of these services is the `notifications-service`.
 
+The lab assignment has the following requirements: 
+
+1. Containerize the `notifications-service`. When starting the
+   `notifications-service` you should pass the parameter `--secret-key
+   QJUHsPhnA0eiqHuJqsPgzhDozYO4f1zh`. 
+   This [link](https://doc.rust-lang.org/book/ch01-01-installation.html) might
+   be useful to install rust and cargo. The `notifications-service` also has a
+   README that shows how the packages can be built and executed. It might be
+   necessary to execute the following code if when building the
+   notifications-service there is an error with the `cc` linker 
+   ```bash
+   # sudo apt update
+   # sudo apt install build-essential
+   ```.
+1. Create a shortlived container that sends a request to the
+   `notifications-service`. On start, this container should query the
+   `notifications-service`, print the result and store the result on a persistent
+   file. The request body to the `notifications-service` should contain the
+   following content so it is a valid request: 
+   ```json
+   {
+       "notification_type": "OutOfRange", 
+       "researcher": "d.landau@uu.nl",
+       "measurement_id": "1234", 
+       "experiment_id": "5678", 
+       "cipher_data": "D5qnEHeIrTYmLwYX.hSZNb3xxQ9MtGhRP7E52yv2seWo4tUxYe28ATJVHUi0J++SFyfq5LQc0sTmiS4ILiM0/YsPHgp5fQKuRuuHLSyLA1WR9YIRS6nYrokZ68u4OLC4j26JW/QpiGmAydGKPIvV2ImD8t1NOUrejbnp/cmbMDUKO1hbXGPfD7oTvvk6JQVBAxSPVB96jDv7C4sGTmuEDZPoIpojcTBFP2xA"
+   }
+   ```
+   If the request is successful, the endpoint will return the latency between
+   the current timestamp and the timestamp passed in the request (implicitly
+   through the cipher_data). You should append this latency into a persistent
+   file.
+1. When making the request to the `notifications-service` you should use the
+   container's name, not its IP address. 
+1. The persistent file where the latencies are stored should be readable from
+   the host filesystem (outside of the docker container).
+
+## Evaluation Procedure
+
+The lab assignments will be assessed during the tutorials on the 20th and 22nd
+of September. 
+
+During the assessment, I will ask you to execute the shortlived containers 3
+times. The expected result is the container having written 3 latency results
+into a persistent file that should be readable from the host's filesystem. I
+will also validate the remaining requirements are also complied with.
