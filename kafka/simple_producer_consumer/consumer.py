@@ -5,8 +5,8 @@ from confluent_kafka import Consumer
 
 c = Consumer({
     'bootstrap.servers': '13.49.128.80:19093',
-    'group.id': 'new',
-    'auto.offset.reset': 'earliest',
+    'group.id': 'simple_consumer',
+    'auto.offset.reset': 'latest',
     'security.protocol': 'SSL',
     'ssl.ca.location': './auth/ca.crt',
     'ssl.keystore.location': './auth/kafka.keystore.pkcs12',
