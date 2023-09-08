@@ -281,3 +281,96 @@ We can now delete the consumer:
 ```bash
 docker stop consumer_commit
 ```
+
+# Consumer Group
+
+A consumer group is an abstraction kafka provides that allows parallelizing the
+data consumption between the consumers belonging to the same group. The effect
+is an increase of the rate at which data can be consumed.
+
+But how do multiple consumers read from the same topic, without reading
+overlapping messages? What enables this behaviour is Kafka's topic
+partitioning, wherein a single topic can have multiple partitions, e.g., in our
+case, each of our topics has 16 partitions. 
+
+To guarantee all messages produced to the topic are read by the group, the rule
+is to guarantee each partition is assigned a consumer within the group. When
+there are multiple active consumer's belonging to the same group, kafka
+attempts to balance out the load between the different consumers by assigning
+them an equal amount of partitions. Using our case as an example again, if we
+have 2 consumers in our group reading from our topic, then each consumer will
+be assigned 8 partitions. 
+
+Partitions is also the unit where kafka guarantees message ordering. What
+determines which partition a message will be assigned to is the partition key
+associated with a message. If 2 messages have the same partition key, then it
+is guaranteed they will be sent to the same partition. In our assignment, the
+key of all messages for an experiment is the experiment's identifier, so as to
+make sure that the messages will be consumed in the same order as they were
+produced. If on the other hand the messages were published into different
+partitions, there would be no guarantee that the messages would be read in the
+correct order. 
+
+## Demo
+
+We will make use of our producer from before with the added code that includes
+a key on each message. The key value increments everytime we write a new
+message to try and make it go to different topics. 
+
+```python
+# consumer_group/producer.py
+# ...
+        p.produce(topic, key=f"{i}", value=message.encode('utf-8'))
+        p.flush()
+        i+=1
+# ...
+```
+
+We will now start 2 consumers with the `"group.id": "consumer_group_1"`,
+meaning they will belong to the same consumer group:
+
+```bash
+docker build -t tkafka/consumer_group consumer_group
+
+docker run \
+    --rm \
+    -d \
+    --name consumer_1 \
+    -v "$(pwd)/auth":/usr/src/app/auth \
+    tkafka/consumer_group consumer.py "<topic>"
+
+docker run \
+    --rm \
+    -d \
+    --name consumer_2 \
+    -v "$(pwd)/auth":/usr/src/app/auth \
+    tkafka/consumer_group consumer.py "<topic>"
+```
+
+If we now check their logs, we may see that after the partitions have been
+assigned, each consumer has been assigned 8 of the 16 partitions, without any
+overlap.
+
+```bash
+docker logs -f consumer_1 # wait for the printed partition assignment
+docker logs -f consumer_2 # wait for the printed partition assignment
+```
+
+We will now start our producer which will write data to the partitions "at
+random":
+```bash
+docker run \
+    --rm \
+    -it \
+    --name producer \
+    -v "$(pwd)/auth":/usr/src/app/auth \
+    tkafka/consumer_group producer.py "<topic>"
+```
+
+We expect that as you write messages either `consumer_1` or `consumer_2` is
+getting them, but NEVER BOTH.
+
+We can now stop our consumers:
+```bash
+docker stop consumer_1 consumer_2
+```
