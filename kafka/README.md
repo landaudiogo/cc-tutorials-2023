@@ -374,3 +374,45 @@ We can now stop our consumers:
 ```bash
 docker stop consumer_1 consumer_2
 ```
+
+# Assignment
+
+The goal of this assignment is to learn how to deploy the `experiment_producer`
+service, and deserialize the data it produces.
+
+For this lab assignment, you will have to: 
+
+- Adapt the `start-producer.sh` script to start 3 instanecs of the
+  `experiment-producer` concurrently. 
+  > Tip: 
+  > Consider creating a bash for loop around the command that instantiates the
+  > experiment-producer container.
+- Create a single consumer that deserializes all the messages produced by the
+  experiment-producer instances. When reading a message produced into the
+  topic, your consumer should, first print the message header `record_name`
+  followed by the deserialized messages. 
+  E.g.: 
+  ```txt
+  sensor_temperature_measured
+  {'experiment': '577cb8c3-0c81-456e-9314-349937ca08a9', 'sensor': '9a8d38b9-35d2-4436-9cb8-0185edbc077c', 'measurement_id': 'fc6e5b2b-ec78-4bbd-bab7-94c24907d1cf', 'timestamp': 1694266072.336535, 'temperature': 29.995697021484375, 'measurement_hash': 'Xf0r67teLs16dD12.SmEXcqiXtJPwJ8CCTXF7gMfXKeWAr/3b7jisYBeuaAvdxYNDc7yIpbXKW73QMNguxCu0Q4Do7cPwL8W//6qp0sO682sHZ6xWrIlssGhTOjK3TDXlew4x1pbaVhPNq1LuLuRDq/AQHJZEsXqT2PYebydv16tLvlAwbAR9VkAi1DmI4SwIhRVyGk6EkhMqMbby8BWQsrelf4adUy9CuZ91KORBs6tItiHlBBeWy87V3xfY+nHR+Tn5JjQW7dg9IoAZCqBAa5ZK1a5KhPWHySpvgqurGd0P'}
+  experiment_terminated
+  {'experiment': '577cb8c3-0c81-456e-9314-349937ca08a9', 'timestamp': 1694266072.6484454}
+  ```
+  > This document shows a simple python example of how serialization and
+  > deserialization works in Python:
+  > https://avro.apache.org/docs/1.11.1/getting-started-python/
+
+  The data published by the `experiment_producer` is in the avro format. So I
+  would recommend you read the document linked above. Make sure you also print
+  the message header `record_name` before printing each message, as shown in
+  the output above.
+
+## Evaluation Procedure
+
+The lab assignments will be assessed during the tutorials on the 27th and 29th
+of September. 
+
+During the assessment, you will start your consumer, and then start the 3
+`experiment-producer`s. I will then verify whether you are succesfully
+deserializing the messages. I might also request to have a look at how your are
+deploying the different containers.

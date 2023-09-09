@@ -1,0 +1,30 @@
+{
+    "type": "record", 
+    "name": "sensor_temperature_measured", 
+    "fields": [
+        {
+            "name": "experiment",
+            "type": "string"
+        },
+        {
+            "name": "sensor",
+            "type": "string"
+        },
+        {
+            "name": "measurement_id",
+            "type": "string"
+        },
+        {
+            "name": "timestamp", 
+            "type": "double"
+        },
+        {
+            "name": "temperature", 
+            "type": "float"
+        }, 
+        {
+            "name": "measurement_hash", 
+            "type": "string"
+        }
+    ]
+}

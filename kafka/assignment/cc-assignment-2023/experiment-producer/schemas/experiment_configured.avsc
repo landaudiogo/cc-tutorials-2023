@@ -1,0 +1,32 @@
+{
+    "type": "record", 
+    "name": "ExperimentConfig", 
+    "fields": [
+        {
+            "type": "string",
+            "name": "experiment"
+        },
+        {
+            "type": "string",
+            "name": "researcher"
+        },
+        {
+            "name": "sensors", 
+            "type": {
+                "type": "array",
+                "items": "string"
+            }
+        }, 
+        {
+            "name": "temperature_range",
+            "type": {
+                "type": "record",
+                "name": "temperature_range",
+                "fields": [
+                    {"name": "upper_threshold", "type": "float"},
+                    {"name": "lower_threshold", "type": "float"}
+                ]
+            } 
+        }
+    ]
+}

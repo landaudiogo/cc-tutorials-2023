@@ -1,0 +1,14 @@
+{
+    "type": "record", 
+    "name": "experiment_started", 
+    "fields": [
+        {
+            "type": "string",
+            "name": "experiment"
+        },
+        {
+            "name": "timestamp", 
+            "type": "double"
+        }
+    ]
+}
