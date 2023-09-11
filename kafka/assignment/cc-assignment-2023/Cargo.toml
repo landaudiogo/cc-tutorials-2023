@@ -1,9 +1,0 @@
-[workspace]
-resolver = "2"
-
-
-members = [
-    "notifications-service", 
-    "experiment-producer",
-    "event-hash",
-]

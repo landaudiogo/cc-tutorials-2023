@@ -19,8 +19,8 @@ docker build \
 
 
 docker run \
-    --rm -d \
-    -v $(pwd)/auth:/usr/src/myapp/experiment-producer/auth \
+    --rm \
+    -v $(pwd)/auth:/usr/src/cc-assignment-2023/experiment-producer/auth \
     image/experiment-producer \
     --topic "$topic"
 

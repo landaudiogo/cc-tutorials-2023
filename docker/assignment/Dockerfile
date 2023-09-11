@@ -6,8 +6,10 @@ RUN apt-get update \
     && apt-get install -y cmake
 RUN git clone https://github.com/landaudiogo/cc-assignment-2023 \
     && cd cc-assignment-2023 \
-    && cargo install --path experiment-producer
+    && cargo install --path notifications-service
 
 WORKDIR /usr/src/cc-assignment-2023
 
-ENTRYPOINT ["experiment-producer", "--brokers", "13.49.128.80:19093,13.49.128.80:29093,13.49.128.80:39093"]
+CMD ["--external-ip", "localhost"]
+
+ENTRYPOINT ["notifications-service", "--secret-key", "QJUHsPhnA0eiqHuJqsPgzhDozYO4f1zh"]

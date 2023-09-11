@@ -575,21 +575,24 @@ The lab assignment has the following requirements:
 
 1. Containerize the `notifications-service`. When starting the
    `notifications-service` you should pass the parameter `--secret-key
-   QJUHsPhnA0eiqHuJqsPgzhDozYO4f1zh`. 
-   This [link](https://doc.rust-lang.org/book/ch01-01-installation.html) might
-   be useful to install rust and cargo. The `notifications-service` also has a
-   README that shows how the packages can be built and executed. It might be
-   necessary to execute the following code if when building the
-   notifications-service there is an error with the `cc` linker 
-   ```bash
-   # sudo apt update
-   # sudo apt install build-essential
-   ```
+   QJUHsPhnA0eiqHuJqsPgzhDozYO4f1zh`.
+
+   **Before you continue reading, please try and make sure you tried to
+   containerize the notifications-service yourself.**
+
+   If you are struggling with containerizing the notifications-service, in the
+   `docker/assignment` directory there is an example Dockerfile and execution
+   script for the notifications-service. 
+
+   Visit `<your-vm-ip>:3000` to check whether the notifications-service is
+   correctly deployed.
+
 1. Create a shortlived container that sends a request to the
    `notifications-service`. On start, this container should query the
-   `notifications-service`, print the result and store the result on a persistent
-   file. The request body to the `notifications-service` should contain the
-   following content so it is a valid request: 
+   `notifications-service`, print the result and store the result on a
+   persistent file. The request body to the `notifications-service` should
+   contain the following content so it is a valid request: 
+
    ```json
    {
        "notification_type": "OutOfRange", 
@@ -599,12 +602,15 @@ The lab assignment has the following requirements:
        "cipher_data": "D5qnEHeIrTYmLwYX.hSZNb3xxQ9MtGhRP7E52yv2seWo4tUxYe28ATJVHUi0J++SFyfq5LQc0sTmiS4ILiM0/YsPHgp5fQKuRuuHLSyLA1WR9YIRS6nYrokZ68u4OLC4j26JW/QpiGmAydGKPIvV2ImD8t1NOUrejbnp/cmbMDUKO1hbXGPfD7oTvvk6JQVBAxSPVB96jDv7C4sGTmuEDZPoIpojcTBFP2xA"
    }
    ```
+
    If the request is successful, the endpoint will return the latency between
    the current timestamp and the timestamp passed in the request (implicitly
    through the cipher_data). You should append this latency into a persistent
    file.
+
 1. When making the request to the `notifications-service` you should use the
    container's name, not its IP address. 
+
 1. The persistent file where the latencies are stored should be readable from
    the host filesystem (outside of the docker container).
 
