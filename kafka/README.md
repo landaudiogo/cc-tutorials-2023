@@ -301,7 +301,7 @@ them an equal amount of partitions. Using our case as an example again, if we
 have 2 consumers in our group reading from our topic, then each consumer will
 be assigned 8 partitions. 
 
-Partitions is also the unit where kafka guarantees message ordering. What
+Partitions are also the unit where kafka guarantees message ordering. What
 determines which partition a message will be assigned to is the partition key
 associated with a message. If 2 messages have the same partition key, then it
 is guaranteed they will be sent to the same partition. In our assignment, the
@@ -310,6 +310,10 @@ make sure that the messages will be consumed in the same order as they were
 produced. If on the other hand the messages were published into different
 partitions, there would be no guarantee that the messages would be read in the
 correct order. 
+
+The following figure illustrates Kafka's publish/subscribe communication model
+for a topic with 4 partitions: 
+![Kafka Architecture](https://github.com/landaudiogo/cc-2023-tutorials/assets/26680755/d51aa0bc-7a74-4cac-9d78-6d1590d3de91)
 
 ## Demo
 
@@ -406,6 +410,9 @@ For this lab assignment, you will have to:
   would recommend you read the document linked above. Make sure you also print
   the message header `record_name` before printing each message, as shown in
   the output above.
+- You may create the consumer in any language, as long as you find support for
+  it by apache avro. E.g. Apache avro supports rust and therefore the
+  experiment producer was created in Rust. 
 
 ## Evaluation Procedure
 
@@ -415,4 +422,4 @@ of September.
 During the assessment, you will start your consumer, and then start the 3
 `experiment-producer`s. I will then verify whether you are succesfully
 deserializing the messages. I might also request to have a look at how your are
-deploying the different containers.
+deploying the producers and consumers.
