@@ -21,6 +21,7 @@ shuts down the service, the other features are also unreachable if the service
 is down. The monolith may then become less reliable as the codebase increases.
 
 > Example of extracting a monolith into a microservice: 
+>
 > https://microservices.io/refactoring/example-of-extracting-a-service.html
 
 Provided a good seperation of concerns is in place for the distributed system,
@@ -97,8 +98,14 @@ sudo docker run hello-world
 
 ```bash
 sudo groupadd docker
+```
+
+```bash
 sudo usermod -aG docker $USER
 newgrp docker
+```
+
+```bash
 docker run hello-world
 ```
 
@@ -114,11 +121,13 @@ filesystem environment. They also contain the code or binary, runtimes,
 dependencies and other fs objects.
 
 > To read more about images: 
+>
 > docker: https://docs.docker.com/get-started/overview/#images
+>
 > circle-ci: https://circleci.com/blog/docker-image-vs-container/
 
 The dockerfile is the file that creates a new image based upon an already
-exisitng image. 
+existing image. 
 
 The goal of this section is to acquire a simple understanding of the
 instructions `FROM`, `COPY`, `ADD`, `RUN`, `ENV`, `ENTRYPOINT`, `CMD`;
@@ -130,12 +139,12 @@ is.
 
 Clone this git repository: 
 ```bash
-git clone https://github.com/landaudiogo/cc-2023-tutorials.git
+git clone https://github.com/landaudiogo/cc-tutorials-2023.git
 ```
 
 Change into the directory of our first demo:
 ```bash
-cd cc-2023-tutorials/demo-1
+cd cc-2023-tutorials/docker/demo-1
 ```
 
 We will use the following python script to understand some nuances when
@@ -254,6 +263,11 @@ ps -ef
 # root          13       7  0 08:39 pts/0    00:00:00 ps -ef
 ```
 
+Leave the container's environment: 
+```bash
+exit
+```
+
 Note how our program is PID 1. Now lets try and stop the container with: 
 ```bash
 docker stop t1c
@@ -285,12 +299,20 @@ our executable.
 Lets attach an interactive shell to the container:
 ```bash
 docker exec -it t1c /bin/sh
+```
+
+```bash
 ps -ef
 # UID          PID    PPID  C STIME TTY          TIME CMD
 # root           1       0  0 09:15 ?        00:00:00 /bin/sh -c python3 -u main.py hello this is CMD
 # root           7       1  0 09:15 ?        00:00:00 python3 -u main.py
 # root           8       0  0 09:22 pts/0    00:00:00 /bin/sh
 # root          13       8  0 09:22 pts/0    00:00:00 ps -ef
+```
+
+Leave the container's environment:
+```bash
+exit
 ```
 
 Our container started as an executable with the `/bin/sh` program and this
@@ -312,19 +334,21 @@ after the program that is executing terminated, i.e., the `/bin/sh` program does
 not propagate the `SIGTERM` to its child processes.
 
 > For further reading on what we have just discussed: 
+>
 > https://www.kaggle.com/code/residentmario/best-practices-for-propagating-signals-on-docker
 > 
 > Docker entrypoint references: 
+>
 > https://docs.docker.com/engine/reference/builder/#entrypoint
 
 ## Volumes
 
-
-
 > Docker volumes reference: 
+>
 > https://docs.docker.com/storage/volumes/
 
-Volumse are used to share data between containers and/or persist data across
+
+Volumes are used to share data between containers and/or persist data across
 different container executions. Without volumes the data stored in containers is
 lost as soon as the container is removed.
 
@@ -333,11 +357,12 @@ data persisted.
 
 We can manage volumes specifically with the `docker volumes` CLI, or they can be
 created automatically when passing the `-v` option to the `docker run` command.
-When passing the `-v` option, there are 3 colon seperated fields:
 
-1. Name of the volume / host directory path
-2. Container mount path
-3. Mount options (read, read/write, ...)
+The goal of this part of the tutorial will be to: 
+
+- Learn how to persist data in docker.
+- Using named volumes
+- Using host volumes
 
 ### Demo
 
@@ -427,6 +452,35 @@ validate whether this is the case:
 docker logs -f t2c-2
 ```
 
+To show how data is persisted, we will now stop the container that is reading
+from the shared file, and start it again, and print what the file shows:
+```bash
+docker stop t2c-1
+docker run \
+    -d --rm \
+    --name t2c-1 \
+    --volume t2v:/usr/src/data \
+    t2i
+docker logs -f t2c-1
+```
+
+Conversely, if we had not used volumes, the file printed by the container would
+simply be the file in its form as created in the Dockerfile:
+```bash
+docker stop t2c-1
+docker run \
+    -d --rm \
+    --name t2c-1 \
+    t2i
+docker logs -f t2c-1
+```
+
+We may now stop the container:
+```bash
+docker stop t2c-1
+```
+
+
 Alternatively, instead of using docker's named volumes, we could indicate the
 volume to be a directory in our host's filesystem. We can do this with the
 following command: 
@@ -503,7 +557,7 @@ To connect to our server from our host, run:
 curl localhost:3001
 ```
 
-The `-p 3000:1234` option is what connects our host's port `3000` to our
+The `-p 3001:1234` option is what connects our host's port `3001` to our
 container's port `1234`. Without this option, we would not be able to
 communicate with our container from our host. 
 
@@ -587,11 +641,15 @@ The lab assignment has the following requirements:
      }'
    ```
 
-1. Create a shortlived container that sends a request to the
-   `notifications-service`. On start, this container should query the
-   `notifications-service`, print the result and store the result on a
-   persistent file. The request body to the `notifications-service` should
-   contain the following content so it is a valid request: 
+1. Create a shortlived container that sends a **single** request to the
+   `notifications-service`. This container should:
+   - query the `notifications-service`; 
+   - print the result to stdout
+   - store the result on a persistent file
+   - exit after successfully performing only 1 request. 
+
+   The request body to the `notifications-service` should contain the following
+   content so it is a valid request: 
 
    ```json
    {
@@ -608,7 +666,9 @@ The lab assignment has the following requirements:
    through the cipher_data). You should append this latency into a persistent
    file.
 
-   After performing the 3 requests the file should look something like:
+   This container will be executed 3 times, which means the file should have 3
+   latency values appended. After the 3 requests the file should look something
+   like:
    ```
    # assignment/log.txt
    598216.9024903774
@@ -627,7 +687,7 @@ The lab assignment has the following requirements:
 The lab assignments will be assessed during the tutorials on the 20th and 22nd
 of September. 
 
-During the assessment, I will ask you to execute the shortlived containers 3
+During the assessment, I will ask you to execute the shortlived container 3
 times. The expected result is the container having written 3 latency results
 into a persistent file that should be readable from the host's filesystem. I
 will also validate the remaining requirements are also complied with.
