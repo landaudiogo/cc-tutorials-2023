@@ -97,21 +97,8 @@ sudo docker run hello-world
 
 ```bash
 sudo groupadd docker
-```
-
-```bash
 sudo usermod -aG docker $USER
-```
-
-Try running this command. Only if the changes don't take effect, then we will have to restart the virtual
-machine.
-
-```bash
 newgrp docker
-# sudo reboot
-```
-
-```bash
 docker run hello-world
 ```
 
@@ -584,8 +571,21 @@ The lab assignment has the following requirements:
    `docker/assignment` directory there is an example Dockerfile and execution
    script for the notifications-service. 
 
-   Visit `<your-vm-ip>:3000` to check whether the notifications-service is
-   correctly deployed.
+   To confirm whether you successfully deployed your notifications-service, run
+   the following command: 
+   ```bash
+   curl -X 'POST' \
+     'http://localhost:3000/api/notify' \
+     -H 'accept: text/plain; charset=utf-8' \
+     -H 'Content-Type: application/json; charset=utf-8' \
+     -d '{
+         "notification_type": "OutOfRange",
+         "researcher": "d.landau@uu.nl",
+         "measurement_id": "1234",
+         "experiment_id": "5678",
+         "cipher_data": "D5qnEHeIrTYmLwYX.hSZNb3xxQ9MtGhRP7E52yv2seWo4tUxYe28ATJVHUi0J++SFyfq5LQc0sTmiS4ILiM0/YsPHgp5fQKuRuuHLSyLA1WR9YIRS6nYrokZ68u4OLC4j26JW/QpiGmAydGKPIvV2ImD8t1NOUrejbnp/cmbMDUKO1hbXGPfD7oTvvk6JQVBAxSPVB96jDv7C4sGTmuEDZPoIpojcTBFP2xA"
+     }'
+   ```
 
 1. Create a shortlived container that sends a request to the
    `notifications-service`. On start, this container should query the
@@ -607,6 +607,14 @@ The lab assignment has the following requirements:
    the current timestamp and the timestamp passed in the request (implicitly
    through the cipher_data). You should append this latency into a persistent
    file.
+
+   After performing the 3 requests the file should look something like:
+   ```
+   # assignment/log.txt
+   598216.9024903774
+   598240.3940031528
+   598248.6145424843
+   ```
 
 1. When making the request to the `notifications-service` you should use the
    container's name, not its IP address. 
