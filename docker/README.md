@@ -684,8 +684,8 @@ The lab assignment has the following requirements:
 
 ## Evaluation Procedure
 
-The lab assignments will be assessed during the tutorials on the 20th and 22nd
-of September. 
+The lab assignments will be assessed during the tutorials on the 20th of 
+September. 
 
 During the assessment, I will ask you to execute the shortlived container 3
 times. The expected result is the container having written 3 latency results
