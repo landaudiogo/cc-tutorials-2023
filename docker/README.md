@@ -20,7 +20,7 @@ reliable changes to the codebase; to scale the service; and to update the codeba
 shuts down the service, the other features are also unreachable if the service
 is down. The monolith may then become less reliable as the codebase increases.
 
-> Example of extracting a monolith into a microservice: 
+> Example of creating microservices from a monolith: 
 >
 > https://microservices.io/refactoring/example-of-extracting-a-service.html
 
@@ -449,7 +449,7 @@ volume between both containers, the first container should be able to see the
 data that has been written by this second command. Run the following command to
 validate whether this is the case: 
 ```bash
-docker logs -f t2c-2
+docker logs -f t2c-1
 ```
 
 To show how data is persisted, we will now stop the container that is reading
@@ -645,7 +645,7 @@ The lab assignment has the following requirements:
    `notifications-service`. This container should:
    - query the `notifications-service`; 
    - print the result to stdout
-   - store the result on a persistent file
+   - store the result on a persistent file in a docker volume
    - exit after successfully performing only 1 request. 
 
    The request body to the `notifications-service` should contain the following
