@@ -144,7 +144,7 @@ git clone https://github.com/landaudiogo/cc-tutorials-2023.git
 
 Change into the directory of our first demo:
 ```bash
-cd cc-2023-tutorials/docker/demo-1
+cd cc-tutorials-2023/docker/demo-1
 ```
 
 We will use the following python script to understand some nuances when
