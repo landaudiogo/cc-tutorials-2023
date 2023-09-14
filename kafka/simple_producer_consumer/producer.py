@@ -17,7 +17,7 @@ p = Producer({
 def produce(topic: str): 
     while True: 
         message = input()
-        p.produce(topic, key="1", message.encode('utf-8'))
+        p.produce(topic, key="1", value=message.encode('utf-8'))
         p.flush()
 
 
