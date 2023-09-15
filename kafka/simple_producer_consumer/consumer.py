@@ -1,12 +1,13 @@
 import click 
+import random
 
 from confluent_kafka import Consumer
 
 
 c = Consumer({
     'bootstrap.servers': '13.49.128.80:19093',
-    'group.id': 'simple_consumer',
-    'auto.offset.reset': 'latest',
+    'group.id': f"{random.random()}",
+    'auto.offset.reset': 'earliest',
     'security.protocol': 'SSL',
     'ssl.ca.location': './auth/ca.crt',
     'ssl.keystore.location': './auth/kafka.keystore.pkcs12',
@@ -18,7 +19,10 @@ c = Consumer({
 @click.command()
 @click.argument('topic')
 def consume(topic: str): 
-    c.subscribe([topic])
+    c.subscribe(
+        [topic], 
+        on_assign=lambda _, p_list: print(p_list)
+    )
 
     while True:
         msg = c.poll(1.0)
