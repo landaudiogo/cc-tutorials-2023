@@ -605,7 +605,7 @@ We can now remove the network:
 docker network rm t3n
 ```
 
-# Assignment
+# Lab Assignment
 
 In the following
 [repository](https://github.com/landaudiogo/cc-assignment-2023), there are a

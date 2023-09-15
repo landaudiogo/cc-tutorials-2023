@@ -5,6 +5,7 @@ import click
 
 from confluent_kafka import Consumer
 
+
 def signal_handler(sig, frame):
     print('EXITING SAFELY!')
     exit(0)

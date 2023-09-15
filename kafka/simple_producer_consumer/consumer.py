@@ -1,13 +1,20 @@
+import signal
 import click 
 import random
 
 from confluent_kafka import Consumer
 
 
+def signal_handler(sig, frame):
+    print('EXITING SAFELY!')
+    exit(0)
+
+signal.signal(signal.SIGTERM, signal_handler)
+
 c = Consumer({
     'bootstrap.servers': '13.49.128.80:19093',
     'group.id': f"{random.random()}",
-    'auto.offset.reset': 'earliest',
+    'auto.offset.reset': 'latest',
     'security.protocol': 'SSL',
     'ssl.ca.location': './auth/ca.crt',
     'ssl.keystore.location': './auth/kafka.keystore.pkcs12',

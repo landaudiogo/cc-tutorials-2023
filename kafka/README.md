@@ -337,8 +337,9 @@ message to try and make it go to different partitions.
 # ...
 ```
 
-We will now start 2 consumers with `"group.id": "consumer_group_1"`,
-meaning they will belong to the same consumer group:
+We will now start 2 consumers with `"group.id": "<any-group-id>"`,
+meaning they will belong to the same consumer group (remember to change
+`<any-group-id>` by an identifier of your choosing):
 
 ```bash
 docker build -t tkafka/consumer_group consumer_group
@@ -348,14 +349,14 @@ docker run \
     -d \
     --name consumer_1 \
     -v "$(pwd)/auth":/usr/src/app/auth \
-    tkafka/consumer_group consumer.py "<topic>"
+    tkafka/consumer_group consumer.py "<topic>" "<any-group-id>"
 
 docker run \
     --rm \
     -d \
     --name consumer_2 \
     -v "$(pwd)/auth":/usr/src/app/auth \
-    tkafka/consumer_group consumer.py "<topic>"
+    tkafka/consumer_group consumer.py "<topic>" "<any-group-id>"
 ```
 
 If we now check their logs, we may see that after the partitions have been
@@ -396,7 +397,7 @@ We can now stop our consumers:
 docker stop consumer_1 consumer_2
 ```
 
-# Assignment
+# Lab Assignment
 
 The goal of this assignment is to learn how to deploy the `experiment_producer`
 service, and deserialize the data it produces.
