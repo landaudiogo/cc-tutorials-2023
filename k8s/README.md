@@ -297,3 +297,68 @@ SELECT * FROM experiment.researcher;
 If everything went according to plan, the query should show the line for the
 researcher we created before.
 
+# Jobs & CronJobs
+
+> https://kubernetes.io/docs/concepts/workloads/controllers/job/
+> 
+> *A Job creates one or more Pods and will continue to retry execution of the
+> Pods until a specified number of them successfully terminate.*
+
+A job is a resource that runs pods (possibly in parallel) until a specified
+number of pods have terminated successfully.
+
+Our job manifest is requesting 4 successful completions of our
+`experiment-producer` while only allowing 2 producers to run in parallel:
+```yaml
+# jobs/job-template
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: experiment-producer-job
+spec:
+  completions: 4
+  parallelism: 2
+  backoffLimit: 4
+  template:
+    # the same spec as we used for our pod
+```
+
+To start our job, run:
+```bash
+sed 's/{{TOPIC}}/<your-topic>/g' < jobs/job-template.yml | kubectl apply -f -
+watch kubectl get pods
+```
+
+We can also check thet state of our job with:
+```bash
+kubectl get jobs
+```
+
+A CronJob, is a wrapper around Kubernetes Jobs, which allows starting a job
+based on a cron expression. 
+
+```yaml
+# jobs/cronjob-template.yml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: experiment-producer-cron
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    # the job configurations
+```
+
+As shown in the previous cronjob manifest, the `schedule` attribute indicates
+we want a job with the `jobTemplate` value to be created every minute. You can
+create more elaborate rules, such as every 5 minutes, every 10 minutes, every
+hour, every 10th minute, and so on...
+
+Visit this [link](https://crontab.guru/) to check other cron expressions.
+
+Create the CronJob:
+```bash
+sed 's/{{TOPIC}}/<your-topic>/g' < jobs/cronjob-template.yml | kubectl apply -f -
+watch kubectl get pods
+```
+

@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: experiment-producer-job
+spec:
+  completions: 4
+  parallelism: 2
+  backoffLimit: 4
+  template:
+    spec:
+      containers:
+        - name: experiment-producer
+          image: dclandau/experiment-producer:1.0.0
+          args: ["--topic", "{{TOPIC}}", "--sample-rate", "100", "--stabilization-samples", "10", "--carry-out-samples", "100"]
+          volumeMounts:
+            - name: config-vol
+              mountPath: /usr/src/cc-assignment-2023/experiment-producer/auth
+      volumes:
+        - name: config-vol
+          configMap:
+            name: kafka-auth
+            items:
+              - key: kafka.truststore.pkcs12
+                path: kafka.truststore.pkcs12
+              - key: kafka.keystore.pkcs12
+                path: kafka.keystore.pkcs12
+              - key: ca.crt
+                path: ca.crt
+      restartPolicy: Never
