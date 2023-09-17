@@ -1,0 +1,61 @@
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: postgres-pv-volume  # Sets PV's name
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi # Sets PV Volume
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/db"
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: postgres-pv-claim  # Sets name of PVC
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce  # Sets read and write access
+  resources:
+    requests:
+      storage: 1Gi  # Sets volume sizeapiVersion: v1
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: postgres-config
+  labels:
+    app: postgres
+data:
+  POSTGRES_DB: postgresdb
+  POSTGRES_USER: admin
+  POSTGRES_PASSWORD: psltest
+
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: postgre-database
+spec:
+  containers:
+    - name: postgres
+      image: postgres:10.1 # Sets Image
+      imagePullPolicy: "IfNotPresent"
+      ports:
+        - containerPort: 5432  # Exposes container port
+      envFrom:
+        - configMapRef:
+            name: postgres-config
+      volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgredb
+  volumes:
+    - name: postgredb
+      persistentVolumeClaim:
+        claimName: postgres-pv-claim
+  restartPolicy: Always

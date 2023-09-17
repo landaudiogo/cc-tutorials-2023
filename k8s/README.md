@@ -153,3 +153,147 @@ the command, and start your experiment producer:
 sed 's/{{TOPIC}}/<your-topic>/g' < pod-template.yml | kubectl apply -f -
 ```
 
+# Persistent Volumes and Persistent Volume Claims
+
+Similar to how we used volumes to persist data in docker, kubernetes also
+provides persistence, with persistent_volumes and persistent_volume_claims. 
+
+To illustrate this functionality, we will start our own postgre database as a
+pod, insert some data into it, delete the pod, and lastly restart the database
+to determine whether the data was persisted with the use of volumes.
+
+The manifest below contains all the Kubernetes resources we will require to
+deploy our database.
+
+- The PersistentVolume creates the physical resources on our node, where the
+  data is persisted. I.e. the directory `/data/db` on our node will be where
+  the data will be persisted.
+- A PersistentVolumeClaim is a request for a type of resources, with access
+  type and capacity. This is the resource that will be associated with our Pod.
+- Similar to the previous exercise, we also create a ConfigMap which will hold
+  our database's configuration variables.
+- Laslty, the Pod references our ConfigMap with the `configmapRef` and the
+  persistentVolumeClaim with the `claimName` attribute.
+
+```yaml
+# persistent_volumes/pv-pvc.yml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: postgres-pv-volume  # Sets PV's name
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi # Sets PV Volume
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/db"
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: postgres-pv-claim  # Sets name of PVC
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce  # Sets read and write access
+  resources:
+    requests:
+      storage: 1Gi  # Sets volume sizeapiVersion: v1
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: postgres-config
+  labels:
+    app: postgres
+data:
+  POSTGRES_DB: postgresdb
+  POSTGRES_USER: admin
+  POSTGRES_PASSWORD: psltest
+
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: postgre-database
+spec:
+  containers:
+    - name: postgres
+      image: postgres:10.1 # Sets Image
+      imagePullPolicy: "IfNotPresent"
+      ports:
+        - containerPort: 5432  # Exposes container port
+      envFrom:
+        - configMapRef:
+            name: postgres-config
+      volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgredb
+  volumes:
+    - name: postgredb
+      persistentVolumeClaim:
+        claimName: postgres-pv-claim
+  restartPolicy: Always
+```
+
+To create our kubernetes resources, we can run: 
+```bash
+kubectl apply -f persistent_volumes/pv-pvc.yml
+watch kubectl get pods 
+```
+
+We will now connect to our pod with: 
+```bash
+kubectl exec -it postgre-database -- /bin/bash
+```
+
+And now to connect to the database server:
+```bash
+psql -U admin -p psltest -d postgresdb -h localhost -p 5432
+```
+
+Run the following lines to create data within our database: 
+```
+CREATE SCHEMA experiment;
+CREATE TABLE experiment.researcher (id TEXT PRIMARY KEY, email TEXT);
+INSERT INTO experiment.researcher (id, email) VALUES ('1234', 'd.landau@uu.nl');
+SELECT * FROM experiment.researcher;
+```
+
+We now remove our pod with:
+```bash
+kubectl delete pod postgre-database
+```
+
+If persistent data is not configured, when we delete our database, when
+starting our pod again, our database would no longer have the data we
+generated.
+
+Lets confirm whether this is the case. Recreate the postgre-database pod:
+```bash
+kubectl apply -f persistent_volumes/pv-pvc.yml
+watch kubectl get pods
+```
+
+And connect to the pod:
+```bash
+kubectl exec -it postgre-database -- /bin/bash
+```
+
+Connect to the database server:
+```bash
+psql -U admin -p psltest -d postgresdb -h localhost -p 5432
+```
+
+And lastly, query the server for the data contained in the `researcher` table:
+```bash
+SELECT * FROM experiment.researcher;
+```
+
+If everything went according to plan, the query should show the line for the
+researcher we created before.
+
