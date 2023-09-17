@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: experiment-consumer-deployment
+  labels:
+    app: experiment-consumer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: experiment-consumer
+  template:
+    metadata:
+      labels:
+        app: experiment-consumer
+    spec:
+      containers:
+        - name: experiment-consumer
+          image: dclandau/assignment-consumer:1.0.0
+          args: ["consumer.py", "{{TOPIC}}"]
+          volumeMounts:
+            - name: config-vol
+              mountPath: /usr/src/app/auth
+      volumes:
+        - name: config-vol
+          configMap:
+            name: kafka-auth
+            items:
+              - key: kafka.truststore.pkcs12
+                path: kafka.truststore.pkcs12
+              - key: kafka.keystore.pkcs12
+                path: kafka.keystore.pkcs12
+              - key: ca.crt
+                path: ca.crt

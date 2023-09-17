@@ -362,3 +362,82 @@ sed 's/{{TOPIC}}/<your-topic>/g' < jobs/cronjob-template.yml | kubectl apply -f 
 watch kubectl get pods
 ```
 
+# Deployment
+
+A deployment is a k8s resource that manages a stateless set of pods. With
+deployments. By defining our deployment's state, the deployment controller will
+always try to uphold this contract. When dealing with deployments, we can
+deploy our service by increasing the number of replicas (horizontal scaling).
+This can either be done manually, or resorting to the horizontal pod
+autoscaler (HPA). We will look into HPA further into this tutorial.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: experiment-consumer-deployment
+  labels:
+    app: experiment-consumer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: experiment-consumer
+  template:
+    metadata:
+      labels:
+        app: experiment-consumer
+    spec:
+      containers:
+        - name: experiment-consumer
+          image: dclandau/assignment-consumer:1.0.1
+          args: ["consumer.py", "{{TOPIC}}"]
+          volumeMounts:
+            - name: config-vol
+              mountPath: /usr/src/app/auth
+      volumes:
+        - name: config-vol
+          configMap:
+            name: kafka-auth
+            items:
+              - key: kafka.truststore.pkcs12
+                path: kafka.truststore.pkcs12
+              - key: kafka.keystore.pkcs12
+                path: kafka.keystore.pkcs12
+              - key: ca.crt
+                path: ca.crt
+```
+
+This deployment indicates it will manage pods that have the structure defined
+in the `.spec.template.spec` attribute. Each pod will host a single container
+based on the image `dclandau/assignment-consumer:1.0.0` pulled from my docker
+hub image repository. This image creates a consumer instance that will read
+data from the topic we pass into it as an argument.
+
+Deployments require pods to always restart in case they terminate. As such,
+this type of k8s resource is more appropriate for non-terminating services.
+Also, this manifest also states that we want our deployment to hold 2 instances
+of our pod.
+
+To create our deployment, we run: 
+```bash
+sed 's/{{TOPIC}}/<your-topic>/g' < deployment/deployment-template.yml | kubectl apply -f -
+```
+
+Now inspect the number of pods that our deployment has created: 
+```bash
+kubectl get pods
+```
+
+Manually up- or down-scaling our deployment is as simple as running:
+```bash
+kubectl scale --replicas 3 deployment/experiment-consumer-deployment
+```
+or changing the replicas attribute in our deployment manifest and re-applying
+the file.
+```bash
+# Run the following command after changing the replicas attribute in the
+# deployment-template.yml file
+sed 's/{{TOPIC}}/<your-topic>/g' < deployment/deployment-template.yml | kubectl apply -f -
+```
+
