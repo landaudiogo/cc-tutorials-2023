@@ -150,7 +150,7 @@ will first have to change a templated value in the file `{{TOPIC}}` which is
 different for each of us. To do so, first change the `<your-topic>` value in
 the command, and start your experiment producer: 
 ```bash
-sed 's/{{TOPIC}}/<your-topic>/g' < pod-template.yml | kubectl apply -f -
+sed 's/{{TOPIC}}/<your-topic>/g' < pods/pod-template.yml | kubectl apply -f -
 ```
 
 # Persistent Volumes and Persistent Volume Claims
@@ -439,5 +439,108 @@ the file.
 # Run the following command after changing the replicas attribute in the
 # deployment-template.yml file
 sed 's/{{TOPIC}}/<your-topic>/g' < deployment/deployment-template.yml | kubectl apply -f -
+```
+
+# Service
+
+"In Kubernetes, a Service is a method for exposing a network application that
+is running as one or more Pods in your cluster."
+[link](https://kubernetes.io/docs/concepts/services-networking/service/) 
+
+To illustrate k8s service resource, our goal is to load-balance our requests
+between a set of 2 notifications-service instances. Since all pods contained in
+a deployment are stateless, our communication requirements can usually be
+satisfied by any of the pods in our deployment.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications-service
+  labels:
+    app: tutorial-k8s
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notifications-service
+  template:
+    metadata:
+      labels:
+        app: notifications-service
+    spec:
+      containers:
+        - name: notifications-service
+          image: dclandau/notifications-service:1.0.0
+          ports: 
+          - containerPort: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifications-service
+spec:
+  type: NodePort
+  selector:
+    app: notifications-service
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30674
+```
+
+Our service manifest creates a deployment with 2 replicas of our
+notifications-service. We then expose our pods via the NodePort service.
+
+To fully expose our Node to external traffice, we still have to port-forward
+one of our host's ports to our service's port. To do so, we run: 
+
+We can start our deployment and service with the following command:
+```bash
+sed 's/{{EXTERNAL_IP}}/<your-vm-ip>/g' < service/service.yml | kubectl apply -f -
+```
+
+Since minikube is an experimental k8s cluster, it does not provide any simple
+facility to expose the service to external traffic, without losing the
+load-balancing characteristic of services (see
+[this](https://stackoverflow.com/a/59941521) stackoverflow thread). With this
+command, we set up our reverse proxy:
+```bash
+docker run \
+    --rm -d \
+    --name nginx-proxy \
+    -v $(pwd)/service/conf.d:/etc/nginx/conf.d \
+    -p 3000:3000 \
+    --network minikube \
+    nginx:alpine 
+```
+
+If we now run 5 of our requests: 
+```bash
+for i in $(seq 1 5); do 
+    curl -X 'POST' \
+        'http://localhost:3000/api/notify' \
+        -H 'accept: text/plain; charset=utf-8' \
+        -H 'Content-Type: application/json; charset=utf-8' \
+        -d '{
+            "notification_type": "OutOfRange",
+            "researcher": "d.landau@uu.nl",
+            "measurement_id": "1234",
+            "experiment_id": "5678",
+            "cipher_data": "D5qnEHeIrTYmLwYX.hSZNb3xxQ9MtGhRP7E52yv2seWo4tUxYe28ATJVHUi0J++SFyfq5LQc0sTmiS4ILiM0/YsPHgp5fQKuRuuHLSyLA1WR9YIRS6nYrokZ68u4OLC4j26JW/QpiGmAydGKPIvV2ImD8t1NOUrejbnp/cmbMDUKO1hbXGPfD7oTvvk6JQVBAxSPVB96jDv7C4sGTmuEDZPoIpojcTBFP2xA"
+        }'; 
+done
+```
+we can verify that these requests were load-balanced between the different pods
+selected by our service.
+```bash
+kubectl logs -f "<pod-1>"
+kubectl logs -f "<pod-2>"
+```
+
+```bash
+kubectl delete -f service/service.yml
+docker stop nginx-proxy
 ```
 
