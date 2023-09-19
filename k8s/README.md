@@ -4,23 +4,21 @@
 > containerized applications. [link](https://kubernetes.io/)
 
 A kubernetes cluster is composed of a set of nodes where containers are
-executed and a control-plane which makes global decisions regarding the cluster
-such as scheduling.
-
-To learn more about the k8s architecture, please refer to
-[this](https://kubernetes.io/docs/concepts/overview/components/) link.
+executed and a control-plane which makes global decisions regarding the
+cluster, e.g. scheduling. To learn more about the k8s architecture, please
+refer to [this](https://kubernetes.io/docs/concepts/overview/components/) link.
 
 Our goal will be to learn and understand the use of the following kubernetes
 resources and concepts: 
 
 - pods
+- presistent volumes and persistent volume claims
 - jobs
 - cronjobs
 - deployment
 - service
-- scaling deployments
-- presistent volumes and persistent volume claims
-- ingress
+- horizontal pod autoscaling
+
 
 We will distribute the tutorial on k8s between 2 days, the 20th and the 22nd of
 September.
@@ -80,21 +78,17 @@ kubectl version
 
 A pod is the smallest unit you can deploy on kubernetes (k8s). Similar to
 docker this unit manages containers, but differs in the fact that a pod can
-host more than one container.
+host more than one container. In some sense it is more similar to
+docker-compose if you are familiar with it.
 
 Provided a kubernetes cluster, nodes are machines that are allocated to the
 cluster where resources can be deployed to. Pods are no exception. When we
 deploy a pod, we are actually asking k8s to schedule our pod into one of our
 nodes in our k8s cluster.
 
-To exemplify deploying pods, we are going to use an application we are already
-familiar with. What we will be deploying in this section is similar to some of
-the APIs we interacted with in our docker tutorial, however, because k8s is
-directed toward a multi-node cluster there is some additional complexity.
-
-## Demo
-
-Within the tutorials repository, change directory into:
+To exemplify deploying pods, we are going to deploy the experiment-producer we
+also used in the kafka tutorial. Within the tutorials repository, change
+directory into:
 ```bash
 cd k8s
 ```
@@ -108,10 +102,14 @@ metadata:
   name: experiment-producer
 spec:
   containers:
-    - name: c-experiment-producer
-      image: image/experiment-producer
-      imagePullPolicy: Never
-      args: ["--topic", "{{TOPIC}}", "{{GROUP_ID}}"]
+    - name: experiment-producer
+      image: dclandau/experiment-producer:1.0.0
+      args: [
+          "--topic", "{{TOPIC}}", 
+          "--sample-rate", "1000", 
+          "--stabilization-samples", "5", 
+          "--carry-out-samples", "20"
+        ]
       volumeMounts:
         - name: config-vol
           mountPath: /usr/src/cc-assignment-2023/experiment-producer/auth
@@ -126,6 +124,7 @@ spec:
             path: kafka.keystore.pkcs12
           - key: ca.crt
             path: ca.crt
+  restartPolicy: Never
 ```
 
 This manifest simply describes what we require to deploy our
@@ -139,8 +138,8 @@ kubectl create configmap kafka-auth --from-file=../kafka/auth
 ```
 
 The command creates a configMap wherein each key is the name of the file in the
-`../kafka/auth` directory, and the content is the file itself. As a
-confirmation, run the following:
+`../kafka/auth` directory, and the content is the file itself. To confirm the
+contents of our configmap, run:
 ```bash
 kubectl describe configmap kafka-auth
 ```
@@ -153,6 +152,15 @@ experiment producer:
 sed 's/{{TOPIC}}/<your-topic>/g' < pods/pod-template.yml | kubectl apply -f -
 ```
 
+Wait until your pod is in the `Running` status:
+```bash
+watch kubectl get pods
+```
+and read the logs of your pod: 
+```bash
+kubectl logs -f <pod-id>
+```
+
 Delete your pod:
 ```bash
 kubectl delete -f pods/pod-template.yml
@@ -161,7 +169,7 @@ kubectl delete -f pods/pod-template.yml
 # Persistent Volumes and Persistent Volume Claims
 
 Similar to how we used volumes to persist data in docker, kubernetes also
-provides persistence, with persistent_volumes and persistent_volume_claims. 
+provides persistence with PersistentVolummes and PersistentVolumeClaim. 
 
 To illustrate this functionality, we will start our own postgre database as a
 pod, insert some data into it, delete the pod, and lastly restart the database
@@ -170,14 +178,14 @@ to determine whether the data was persisted with the use of volumes.
 The manifest below contains all the Kubernetes resources we will require to
 deploy our database.
 
-- The PersistentVolume creates the physical resources on our node, where the
+- The PersistentVolume creates the physical resources on our node where the
   data is persisted. I.e. the directory `/data/db` on our node will be where
   the data will be persisted.
 - A PersistentVolumeClaim is a request for a type of resources, with access
   type and capacity. This is the resource that will be associated with our Pod.
 - Similar to the previous exercise, we also create a ConfigMap which will hold
   our database's configuration variables.
-- Laslty, the Pod references our ConfigMap with the `configmapRef` and the
+- Lastly, the Pod references our ConfigMap with the `configmapRef` and the
   persistentVolumeClaim with the `claimName` attribute.
 
 ```yaml
@@ -245,18 +253,18 @@ spec:
   restartPolicy: Always
 ```
 
-To create our kubernetes resources, we can run: 
+Create the k8s resources, and wait for the pod to get into a `Running` status:
 ```bash
 kubectl apply -f persistent_volumes/pv-pvc.yml
 watch kubectl get pods 
 ```
 
-We will now connect to our pod with: 
+Connect to the pod: 
 ```bash
 kubectl exec -it postgre-database -- /bin/bash
 ```
 
-And now to connect to the database server:
+And now to the database server:
 ```bash
 psql -U admin -p psltest -d postgresdb -h localhost -p 5432
 ```
@@ -283,11 +291,9 @@ We now remove our pod with:
 kubectl delete pod postgre-database
 ```
 
-If persistent data is not configured, when we delete our database, when
-starting our pod again, our database would no longer have the data we
-generated.
-
-Lets confirm whether this is the case. Recreate the postgre-database pod:
+If persistent data is not configured, when we delete our database pod, the data
+is lost. Lets confirm whether this is the case. Recreate the postgre-database
+pod, and wait for it to be in the `Running` status:
 ```bash
 kubectl apply -f persistent_volumes/pv-pvc.yml
 watch kubectl get pods
@@ -327,10 +333,10 @@ kubectl delete -f persistent_volumes/pv-pvc.yml
 
 # Jobs & CronJobs
 
-> https://kubernetes.io/docs/concepts/workloads/controllers/job/
-> 
-> *A Job creates one or more Pods and will continue to retry execution of the
-> Pods until a specified number of them successfully terminate.*
+
+*"A Job creates one or more Pods and will continue to retry execution of the
+Pods until a specified number of them successfully terminate."*
+[(link)](https://kubernetes.io/docs/concepts/workloads/controllers/job/)
 
 A job is a resource that runs pods (possibly in parallel) until a specified
 number of pods have terminated successfully.
@@ -383,19 +389,18 @@ spec:
 ```
 
 As shown in the previous cronjob manifest, the `schedule` attribute indicates
-we want a job with the `jobTemplate` value to be created every minute. You can
-create more elaborate rules, such as every 5 minutes, every 10 minutes, every
-hour, every 10th minute, and so on...
+we want a job with the `jobTemplate` specification to be created every minute.
+You can create more elaborate rules, such as every 5 minutes, every 10 minutes,
+every hour, every 10th minute, and so on... Visit this
+[link](https://crontab.guru/) to check other cron expressions.
 
-Visit this [link](https://crontab.guru/) to check other cron expressions.
-
-Create the CronJob:
+Create the CronJob, and wait for it to create a pod every minute:
 ```bash
 sed 's/{{TOPIC}}/<your-topic>/g' < jobs/cronjob-template.yml | kubectl apply -f -
 watch kubectl get pods
 ```
 
-Delete the cronjob: 
+Delete the CronJob: 
 ```bash
 kubectl delete -f jobs/cronjob-template.yml
 ```
@@ -405,9 +410,9 @@ kubectl delete -f jobs/cronjob-template.yml
 A deployment is a k8s resource that manages a stateless set of pods. With
 deployments. By defining our deployment's state, the deployment controller will
 always try to uphold this contract. When dealing with deployments, we can
-deploy our service by increasing the number of replicas (horizontal scaling).
-This can either be done manually, or resorting to the horizontal pod
-autoscaler (HPA). We will look into HPA further into this tutorial.
+scale our service by increasing the number of replicas (horizontal scaling).
+This can either be done manually, or resorting to the horizontal pod autoscaler
+(HPA). We will look into HPA further into this tutorial.
 
 ```yaml
 apiVersion: apps/v1
@@ -455,9 +460,9 @@ data from the topic we pass into it as an argument.
 Deployments require pods to always restart in case they terminate. As such,
 this type of k8s resource is more appropriate for non-terminating services.
 Also, this manifest also states that we want our deployment to hold 2 instances
-of our pod.
+of our pod template.
 
-To create our deployment, we run (don't forget to change the value of `<your-topic>`): 
+To create our deployment, run (don't forget to change the value of `<your-topic>`): 
 ```bash
 sed \
     -e 's/{{TOPIC}}/<your-topic>/g' \
@@ -465,9 +470,10 @@ sed \
     | kubectl apply -f -
 ```
 
-Now inspect the number of pods that our deployment has created: 
+Now inspect the number of pods that our deployment has created, and wait for
+them to enter a `Running` status: 
 ```bash
-kubectl get pods
+watch kubectl get pods
 ```
 
 To test our consumers, we can run our job once again (don't forget to change
@@ -482,7 +488,7 @@ Manually up- or down-scaling our deployment is as simple as running:
 kubectl scale --replicas 3 deployment/experiment-consumer-deployment
 ```
 or changing the replicas attribute in our deployment manifest and re-applying
-the file.
+our manifest file with the `kubectl apply` command.
 
 Delete the resources we just created: 
 ```bash
@@ -492,14 +498,14 @@ kubectl delete -f jobs/job-template.yml
 
 # Service
 
-"In Kubernetes, a Service is a method for exposing a network application that
-is running as one or more Pods in your cluster."
-[link](https://kubernetes.io/docs/concepts/services-networking/service/) 
+*"In Kubernetes, a Service is a method for exposing a network application that
+is running as one or more Pods in your cluster."*
+[(link)](https://kubernetes.io/docs/concepts/services-networking/service/) 
 
-To illustrate k8s service resource, our goal is to load-balance our requests
-between a set of 2 notifications-service instances. Since all pods contained in
-a deployment are stateless, our communication requirements can usually be
-satisfied by any of the pods in our deployment.
+To illustrate the k8s service resource, our goal is to load-balance our
+requests between a set of 2 notifications-service instances. Since all pods
+contained in a deployment are stateless, our communication requirements can
+usually be satisfied by any of the pods in our deployment.
 
 ```yaml
 apiVersion: apps/v1
@@ -539,11 +545,8 @@ spec:
       nodePort: 30674
 ```
 
-Our service manifest creates a deployment with 2 replicas of our
+The `service.yml` file creates a deployment with 2 replicas of our
 notifications-service. We then expose our pods via the NodePort service.
-
-To fully expose our Node to external traffice, we still have to port-forward
-one of our host's ports to our service's port. To do so, we run: 
 
 We can start our deployment and service with the following command:
 ```bash
@@ -554,7 +557,8 @@ Since minikube is an experimental k8s cluster, it does not provide any simple
 facility to expose the service to external traffic, without losing the
 load-balancing characteristic of services (see
 [this](https://stackoverflow.com/a/59941521) stackoverflow thread). With this
-command, we set up our reverse proxy:
+command, we set up our reverse proxy, which binds our host's port 3000 to our
+kubernetes service:
 ```bash
 docker run \
     --rm -d \
@@ -587,7 +591,7 @@ done
 we can verify that these requests were load-balanced between the different pods
 selected by our service.
 
-List the pods you have available:
+To do so, list the pods you have available:
 ```bash
 kubectl get pods
 ```
@@ -602,6 +606,9 @@ Copy the name of the second pod, and show its logs:
 kubectl logs -f "<pod-2>"
 ```
 
+You should verify that the total number of requests is the sum of the requests
+handled by each pod individually.
+
 Delete the resources just created:
 ```bash
 kubectl delete -f service/service.yml
@@ -613,10 +620,10 @@ docker stop nginx-proxy
 *"In Kubernetes, a HorizontalPodAutoscaler automatically updates a workload
 resource (such as a Deployment or StatefulSet), with the aim of automatically
 scaling the workload to match demand."*
-[link](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
+[(link)](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
 
-Horizontal means adding more instances instead of adding more resources (which
-would be vertical scaling).
+Horizontal referes to adding more instances instead of adding more resources
+(which would be vertical scaling).
 
 For this part of the tutorial, we will stress a notifications-service
 deployment to see how the number of instances in our deployment changes over
@@ -700,17 +707,18 @@ The deployment and the service resources should now be familiar to you, as
 these are similar to the ones used in the `service` part of this demo. The only
 difference is that in this deployment, we are defining resources for each
 container. Here, we define that our container requests `50m` which mean 50
-millicpu, i.e., 0.05 share of a vCPU's resources.
+millicpu, i.e., 0.05 share of 1 vCPU's time.
 
 The last resource in our manifest is the HPA. Here we define that we want to
-scale our notifications-service deployment. We also want to set upper and lower
-bound limits on the number of pods the HPA can scale, to 5 and 1 respectively.
-We then define that the resource we want our HPA to monitor is the vCPU usage,
-and we want an average usage of 20%. 
+scale our notifications-service deployment. It also sets the upper and lower
+limits on the number of pods the HPA can scale to, 5 and 1 respectively. It
+also specifies that the resource we want the HPA to monitor is the average vCPU
+usage, aiming for 20% average utilization across the deployment.
 
 Based on the rules defined in the HPA's manifest, the autoscaler will collect
 metrics from our deployment and calculate the number of pods required to
-satisfy our conditions. The algorithm the HPA autoscaler uses to determine the number of pods required is as follows: 
+satisfy our conditions. The algorithm the HPA autoscaler uses to determine the
+number of pods required is: 
 ```
 desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]
 ```
@@ -751,18 +759,18 @@ for i in $(seq 1 100000); do
 done
 ```
 
-Open 2 new ssh sessions (in addition to the one running the stress test) to
-your VM and in the first run:
+Open 2 new ssh sessions to your VM (in addition to the one running the stress
+test), and in the first session run:
 ```bash
 watch kubectl get pods
 ```
-and on the second run 
+On the second session:
 ```bash
 watch kubectl get hpa
 ```
 
 You should verify that the HPA is evaluating our deployment's current load, and
-increasing/decreasing the number of replicas.
+increasing/decreasing the number of replicas over time.
 
 You can terminate the stress test with `Ctrl-C` and delete the resources with:
 ```bash
