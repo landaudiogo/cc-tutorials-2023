@@ -142,7 +142,7 @@ The command creates a configMap wherein each key is the name of the file in the
 `../kafka/auth` directory, and the content is the file itself. As a
 confirmation, run the following:
 ```bash
-kubectl describe configmap kakfa-auth
+kubectl describe configmap kafka-auth
 ```
 
 We can now use this configmap in our pod manifest above. To create our pod we
@@ -151,6 +151,11 @@ each of us. To do so, change the `<your-topic>` in the command, and start your
 experiment producer: 
 ```bash
 sed 's/{{TOPIC}}/<your-topic>/g' < pods/pod-template.yml | kubectl apply -f -
+```
+
+Delete your pod:
+```bash
+kubectl delete -f pods/pod-template.yml
 ```
 
 # Persistent Volumes and Persistent Volume Claims
@@ -264,6 +269,15 @@ INSERT INTO experiment.researcher (id, email) VALUES ('1234', 'd.landau@uu.nl');
 SELECT * FROM experiment.researcher;
 ```
 
+Disconnect from the database: 
+```bash
+\q
+```
+and from the container: 
+```bash
+exit
+```
+
 We now remove our pod with:
 ```bash
 kubectl delete pod postgre-database
@@ -296,6 +310,20 @@ SELECT * FROM experiment.researcher;
 
 If everything went according to plan, the query should show the line for the
 researcher we created before.
+
+Disconnect from the database: 
+```bash
+\q
+```
+and from the container: 
+```bash
+exit
+```
+
+Delete the resources we just created: 
+```bash
+kubectl delete -f persistent_volumes/pv-pvc.yml
+```
 
 # Jobs & CronJobs
 
@@ -334,6 +362,11 @@ We can also check thet state of our job with:
 kubectl get jobs
 ```
 
+Delete the job: 
+```bash
+kubectl delete -f jobs/job-template.yml
+```
+
 A CronJob, is a wrapper around Kubernetes Jobs, which allows starting a job
 based on a cron expression. 
 
@@ -360,6 +393,11 @@ Create the CronJob:
 ```bash
 sed 's/{{TOPIC}}/<your-topic>/g' < jobs/cronjob-template.yml | kubectl apply -f -
 watch kubectl get pods
+```
+
+Delete the cronjob: 
+```bash
+kubectl delete -f jobs/cronjob-template.yml
 ```
 
 # Deployment
@@ -432,16 +470,24 @@ Now inspect the number of pods that our deployment has created:
 kubectl get pods
 ```
 
+To test our consumers, we can run our job once again (don't forget to change
+the `<your-topic>` value):
+```bash
+sed 's/{{TOPIC}}/<your-topic>/g' < jobs/job-template.yml | kubectl apply -f -
+watch kubectl get pods
+```
+
 Manually up- or down-scaling our deployment is as simple as running:
 ```bash
 kubectl scale --replicas 3 deployment/experiment-consumer-deployment
 ```
 or changing the replicas attribute in our deployment manifest and re-applying
 the file.
+
+Delete the resources we just created: 
 ```bash
-# Run the following command after changing the replicas attribute in the
-# deployment-template.yml file
-sed 's/{{TOPIC}}/<your-topic>/g' < deployment/deployment-template.yml | kubectl apply -f -
+kubectl delete -f deployment/deployment-template.yml
+kubectl delete -f jobs/job-template.yml
 ```
 
 # Service
@@ -519,6 +565,9 @@ docker run \
     nginx:alpine 
 ```
 
+You may now open your browser on your computer and visit the link
+`<your-vm-ip>:3000`.
+
 If we now run 5 of our requests: 
 ```bash
 for i in $(seq 1 5); do 
@@ -537,11 +586,23 @@ done
 ```
 we can verify that these requests were load-balanced between the different pods
 selected by our service.
+
+List the pods you have available:
+```bash
+kubectl get pods
+```
+
+Copy the name of the first pod, and show its logs:
 ```bash
 kubectl logs -f "<pod-1>"
+```
+
+Copy the name of the second pod, and show its logs:
+```bash
 kubectl logs -f "<pod-2>"
 ```
 
+Delete the resources just created:
 ```bash
 kubectl delete -f service/service.yml
 docker stop nginx-proxy
@@ -689,6 +750,19 @@ for i in $(seq 1 100000); do
     sleep 0.00001
 done
 ```
+
+Open 2 new ssh sessions (in addition to the one running the stress test) to
+your VM and in the first run:
+```bash
+watch kubectl get pods
+```
+and on the second run 
+```bash
+watch kubectl get hpa
+```
+
+You should verify that the HPA is evaluating our deployment's current load, and
+increasing/decreasing the number of replicas.
 
 You can terminate the stress test with `Ctrl-C` and delete the resources with:
 ```bash
