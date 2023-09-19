@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications-service
+  labels:
+    app: tutorial-k8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notifications-service
+  template:
+    metadata:
+      labels:
+        app: notifications-service
+    spec:
+      containers:
+        - name: notifications-service
+          image: dclandau/notifications-service:1.0.0
+          args: ["--external-ip", "{{EXTERNAL_IP}}"]
+          ports: 
+          - containerPort: 3000
+          resources:
+            requests:
+              cpu: 50m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifications-service
+spec:
+  type: NodePort
+  selector:
+    app: notifications-service
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30674
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notifications-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notifications-service
+  maxReplicas: 5
+  minReplicas: 1
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 20
+        type: Utilization
+    type: Resource

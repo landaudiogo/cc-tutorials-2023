@@ -544,3 +544,150 @@ kubectl delete -f service/service.yml
 docker stop nginx-proxy
 ```
 
+# Horizontal Pod Autoscaling
+
+*"In Kubernetes, a HorizontalPodAutoscaler automatically updates a workload
+resource (such as a Deployment or StatefulSet), with the aim of automatically
+scaling the workload to match demand."*
+[link](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
+
+Horizontal means adding more instances instead of adding more resources (which
+would be vertical scaling).
+
+For this part of the tutorial, we will stress a notifications-service
+deployment to see how the number of instances in our deployment changes over
+time. Our procedure will look something like: 
+
+1. Create our notifications-service deployment & service
+1. Stress the notifications-service
+1. Check the number of notifications-service instances
+1. Stop the stress test
+1. Check the number of notifications-service instances
+
+We would expect that while stressing our application, the number of instances
+should increase, but never above the limit we set in the HPA manifest. And when
+the service is no longer being stressed, the number of instances should
+decrease to the minimum.
+
+Let's have a look at our manifest: 
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications-service
+  labels:
+    app: tutorial-k8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notifications-service
+  template:
+    metadata:
+      labels:
+        app: notifications-service
+    spec:
+      containers:
+        - name: notifications-service
+          image: dclandau/notifications-service:1.0.0
+          args: ["--external-ip", "{{EXTERNAL_IP}}"]
+          ports: 
+          - containerPort: 3000
+          resources:
+            requests:
+              cpu: 50m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifications-service
+spec:
+  type: NodePort
+  selector:
+    app: notifications-service
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30674
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: notifications-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notifications-service
+  maxReplicas: 5
+  minReplicas: 1
+  metrics:
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 20
+        type: Utilization
+    type: Resource
+```
+
+The deployment and the service resources should now be familiar to you, as
+these are similar to the ones used in the `service` part of this demo. The only
+difference is that in this deployment, we are defining resources for each
+container. Here, we define that our container requests `50m` which mean 50
+millicpu, i.e., 0.05 share of a vCPU's resources.
+
+The last resource in our manifest is the HPA. Here we define that we want to
+scale our notifications-service deployment. We also want to set upper and lower
+bound limits on the number of pods the HPA can scale, to 5 and 1 respectively.
+We then define that the resource we want our HPA to monitor is the vCPU usage,
+and we want an average usage of 20%. 
+
+Based on the rules defined in the HPA's manifest, the autoscaler will collect
+metrics from our deployment and calculate the number of pods required to
+satisfy our conditions. The algorithm the HPA autoscaler uses to determine the number of pods required is as follows: 
+```
+desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]
+```
+So, if we have 2 pods, with an average usage of 30%, and we want our pods with
+an average usage of 20%, the `desiredReplicas` will be `2*0.3/0.2` which is
+equal to `3` replicas (pods).
+
+First, enable the metrics-server addon on minikube:
+```bash
+minikube addons enable metrics-server
+```
+
+Create the resources:
+```bash
+kubectl apply -f hpa/hpa.yml
+```
+
+And now wait for the pod to get into a `Running` status:
+```bash
+watch kubectl get pods
+```
+
+To stress the notifications-service, run the following command:
+```bash
+for i in $(seq 1 100000); do 
+    curl -X 'POST' \
+        'http://192.168.49.2:30674/api/notify' \
+        -H 'accept: text/plain; charset=utf-8' \
+        -H 'Content-Type: application/json; charset=utf-8' \
+        -d '{
+            "notification_type": "OutOfRange",
+            "researcher": "d.landau@uu.nl",
+            "measurement_id": "1234",
+            "experiment_id": "5678",
+            "cipher_data": "D5qnEHeIrTYmLwYX.hSZNb3xxQ9MtGhRP7E52yv2seWo4tUxYe28ATJVHUi0J++SFyfq5LQc0sTmiS4ILiM0/YsPHgp5fQKuRuuHLSyLA1WR9YIRS6nYrokZ68u4OLC4j26JW/QpiGmAydGKPIvV2ImD8t1NOUrejbnp/cmbMDUKO1hbXGPfD7oTvvk6JQVBAxSPVB96jDv7C4sGTmuEDZPoIpojcTBFP2xA"
+        }'; 
+    sleep 0.00001
+done
+```
+
+You can terminate the stress test with `Ctrl-C` and delete the resources with:
+```bash
+kubectl delete -f hpa/hpa.yml
+```
