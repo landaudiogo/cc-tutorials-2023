@@ -17,7 +17,7 @@ spec:
       containers:
         - name: experiment-consumer
           image: dclandau/assignment-consumer:1.0.0
-          args: ["consumer.py", "{{TOPIC}}"]
+          args: ["consumer.py", "{{TOPIC}}", "{{GROUP_ID}}"]
           volumeMounts:
             - name: config-vol
               mountPath: /usr/src/app/auth

@@ -96,7 +96,7 @@ directed toward a multi-node cluster there is some additional complexity.
 
 Within the tutorials repository, change directory into:
 ```bash
-cd k8s/pods
+cd k8s
 ```
 
 Let's start by analyzing our experiment-producer pod manifest: 
@@ -111,7 +111,7 @@ spec:
     - name: c-experiment-producer
       image: image/experiment-producer
       imagePullPolicy: Never
-      args: ["--topic", "{{TOPIC}}"]
+      args: ["--topic", "{{TOPIC}}", "{{GROUP_ID}}"]
       volumeMounts:
         - name: config-vol
           mountPath: /usr/src/cc-assignment-2023/experiment-producer/auth
@@ -135,7 +135,7 @@ But before doing so, we will have to create our configMap for our pod to have
 access to our personal kafka credentials. Given you are in the `k8s` tutorial
 directory, run the following command:
 ```bash
-kubectl create configmap kafka-auth --from-file=../../kafka/auth
+kubectl create configmap kafka-auth --from-file=../kafka/auth
 ```
 
 The command creates a configMap wherein each key is the name of the file in the
@@ -146,9 +146,9 @@ kubectl describe configmap kakfa-auth
 ```
 
 We can now use this configmap in our pod manifest above. To create our pod we
-will first have to change a templated value in the file `{{TOPIC}}` which is
-different for each of us. To do so, first change the `<your-topic>` value in
-the command, and start your experiment producer: 
+will first have to change the `{{TOPIC}}` template value which is unique to
+each of us. To do so, change the `<your-topic>` in the command, and start your
+experiment producer: 
 ```bash
 sed 's/{{TOPIC}}/<your-topic>/g' < pods/pod-template.yml | kubectl apply -f -
 ```
@@ -419,9 +419,12 @@ this type of k8s resource is more appropriate for non-terminating services.
 Also, this manifest also states that we want our deployment to hold 2 instances
 of our pod.
 
-To create our deployment, we run: 
+To create our deployment, we run (don't forget to change the value of `<your-topic>`): 
 ```bash
-sed 's/{{TOPIC}}/<your-topic>/g' < deployment/deployment-template.yml | kubectl apply -f -
+sed \
+    -e 's/{{TOPIC}}/<your-topic>/g' \
+    -e "s/{{GROUP_ID}}/"$(cat /proc/sys/kernel/random/uuid | tr -d "-")"/g" < deployment/deployment-template.yml \
+    | kubectl apply -f -
 ```
 
 Now inspect the number of pods that our deployment has created: 
