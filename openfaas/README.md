@@ -15,7 +15,10 @@ arkade get faas-cli
 Add the directory where the `faas-cli` binary was installed to the list of
 searchable paths for binary files:
 ```bash
-echo "export PATH=$PATH:$HOME/.arkade/bin/" >> ~/.bashrc
+echo '
+export PATH="$PATH:$HOME/.arkade/bin/"
+export OPENFAAS_PREFIX="localhost:5000"
+' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -60,4 +63,48 @@ If you'd like to use your personal container registry in dockerhub for example,
 you can skip this step. You do however have to run `docker login` to connect
 your local docker to your docker hub registry.
 
+# Serverless Hello World
 
+This part of the tutorial is for the most part, based on this
+[link](https://docs.openfaas.com/tutorials/first-python-function/).
+
+First, change directory into your tutorials repository followed by:
+```bash
+cd openfaas
+```
+
+To create a new function, run: 
+```bash
+faas-cli new --lang python hello-world
+```
+
+This should add 2 directories, a `hello-world` and `template` directory.
+Additionally, you should also see a `hello-world.yml` file.
+
+Now open the `hello-world/handler.py` file with your favourite text editor.
+```bash
+vi hello-world/handler.py
+```
+
+The `req` variable passed in the handler corresponds to what is passed in the
+body of th request. Let's modify the return from this: 
+```python
+    # ... 
+    return req 
+```
+To this: 
+```python
+    # ... 
+    return "Hello from ECC " + req 
+```
+
+We can now, build, push and deploy our functions to our k8s cluster:
+```bash
+faas-cli build -f hello-world.yml
+faas-cli push -f hello-world.yml
+faas-cli deploy -f hello-world.yml
+```
+or you may run the combination of these commands as a single command:
+```bash
+faas-cli up -f hello-world.yml
+```
