@@ -266,7 +266,7 @@ kubectl exec -it postgre-database -- /bin/bash
 
 And now to the database server:
 ```bash
-psql -U admin -p psltest -d postgresdb -h localhost -p 5432
+psql -U admin -d postgresdb -h localhost -p 5432
 ```
 
 Run the following lines to create data within our database: 
