@@ -1,0 +1,10 @@
+version: 1.0
+provider:
+  name: openfaas
+  gateway: http://127.0.0.1:8080
+functions:
+  custom-function:
+    lang: dockerfile
+    handler: ./custom-function
+    image: localhost:5000/custom-function:latest
+

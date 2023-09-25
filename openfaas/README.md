@@ -232,3 +232,96 @@ You can now remove the resources just created:
 faas-cli remove python-db
 kubectl delete -f python-db/postgre-db.yml
 ```
+
+# Creating a Custom Function
+
+Openfaas allows you to create functions based on the templtes provided, but you
+may also create your function based on your own Dockerfile. This requires
+understanding how openfaas deploys a **function**, based on its design and
+architecture. If you want to deploy your custom function, read through
+[this](https://docs.openfaas.com/architecture/watchdog/) documentation to
+better understand how openfaas' request model.
+
+> For further reading into deploying a flask app as a serverless function in
+> openfaas, refer to [this](https://www.openfaas.com/blog/openfaas-flask/)
+> link.
+
+We will exempilfy creating a custom function by deploying an already existing
+flask application. We will have 3 different endpoints, each with their own
+handler: 
+- GET /
+- GET /users
+- GET /user/<username>
+
+Start by pulling the dockerfile template from the openfaas template store: 
+```bash
+faas-cli template store pull dockerfile
+```
+
+Within the `openfaas` directory, a `custom-function` directory and a
+`custom-function.yml` file should be available. These contain the structure of
+the custom function we want to deploy to openfaas.
+
+Our flask application has the following structure: 
+```python
+# custom-function/app.py
+from flask import Flask, request
+from waitress import serve
+import os
+
+app = Flask(__name__)
+
+# distutils.util.strtobool() can throw an exception
+def is_true(val):
+    return len(val) > 0 and val.lower() == "true" or val == "1"
+
+@app.before_request
+def fix_transfer_encoding():
+    """
+    Sets the "wsgi.input_terminated" environment flag, thus enabling
+    Werkzeug to pass chunked requests as streams.  The gunicorn server
+    should set this, but it's not yet been implemented.
+    """
+
+    transfer_encoding = request.headers.get("Transfer-Encoding", None)
+    if transfer_encoding == u"chunked":
+        request.environ["wsgi.input_terminated"] = True
+
+@app.route("/", defaults={"path": ""}, methods=["POST", "GET"])
+def home(path):
+    return "home"
+
+@app.route("/users/", methods=['GET', 'POST', 'PUT'])
+def users():
+    return "get users"
+
+@app.route('/user/<username>')
+def profile(username):
+    return "get profile"
+
+if __name__ == '__main__':
+    serve(app, host='0.0.0.0', port=5000)
+```
+
+A `Dockerfile` has also been provided in the `custom-function` directory. Based
+on openfaas' [request model](https://docs.openfaas.com/architecture/watchdog/)
+the dockerfile creates an image that runs our flask app as shown above.
+
+We also specify additional python package requirements for our flask app in the
+`requirements.txt` file.
+
+Deploy our flask app: 
+```bash
+faas-cli up -f custom-function.yml
+```
+
+To test our deployment, make the following requests: 
+```bash
+curl http://127.0.0.1:8080/function/custom-function/
+```
+```bash
+curl http://127.0.0.1:8080/function/custom-function/users/
+```
+```bash
+curl http://127.0.0.1:8080/function/custom-function/user/landaudiogo
+```
