@@ -95,7 +95,7 @@ cd k8s
 
 Let's start by analyzing our experiment-producer pod manifest: 
 ```yaml
-# experiment-producer.yml
+# pods/pod-template.yml
 apiVersion: v1
 kind: Pod
 metadata:
