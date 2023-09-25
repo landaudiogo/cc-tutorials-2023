@@ -227,12 +227,6 @@ user you created with the previous request:
 curl http://127.0.0.1:8080/function/python-db
 ```
 
-You can now remove the resources just created: 
-```bash
-faas-cli remove python-db
-kubectl delete -f python-db/postgre-db.yml
-```
-
 # Creating a Custom Function
 
 Openfaas allows you to create functions based on the templtes provided, but you
@@ -324,4 +318,48 @@ curl http://127.0.0.1:8080/function/custom-function/users/
 ```
 ```bash
 curl http://127.0.0.1:8080/function/custom-function/user/landaudiogo
+```
+
+# Async Functions
+
+Openfaas also provides an interesting functionality wherein a request can be
+made asynchronous, so as to defer the work to a later time, and provide a
+success response within milliseconds. For further reading, refer to
+[this](https://docs.openfaas.com/reference/async/) link.
+
+To make an asynchronous request, all we have to do is call:
+```bash
+curl http://127.0.0.1:8080/async-function/<function-name>
+```
+instead of:
+```bash
+curl http://127.0.0.1:8080/function/<function-name>
+```
+
+We will use our `python-db` to illustrate this type of invocation. The
+synchronous version of our function should be available at
+`http://127.0.0.1:8080/function/python-db`.
+
+Call the asynchronous version of our GET handler: 
+```bash
+curl -X POST -G http://127.0.0.1:8080/async-function/python-db -d 'researcher=myuser@uu.nl'
+```
+we should verify that no content is provided as a response. Recall that we are
+dealing with an asynchronous request, we do not expect a reply with the data we
+requested, we are simply defering work.
+
+However, if our worker has already handled the asynchronous request, when
+calling our synchronous endpoint, our request might have already been handled
+and the username we asked to insert is already available. Check the list of
+available users: 
+```bash
+curl http://127.0.0.1:8080/function/python-db
+```
+
+To delete the resources we just created, run: 
+```bash
+faas-cli remove hello-world
+faas-cli remove python-db
+faas-cli remove custom-function
+kubectl delete -f python-db/postgre-db.yml
 ```
