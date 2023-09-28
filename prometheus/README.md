@@ -7,7 +7,7 @@ and Grafana for visualization.
 
 *"Prometheus is an open-source systems monitoring and alerting toolkit"*
 [link](https://prometheus.io/docs/introduction/overview/). A Prometheus server
-scrapes the **targets** configured at a specific rate, and stores the data in a
+scrapes the **targets** at a configured rate, and stores the data in a
 time-series database. The timeseries data can then be queried resorting to
 PromQL.
 
@@ -30,18 +30,18 @@ the cost of your microservice infrastructure.
 It consists of 3 components: 
 
 1. Prometheus node_exporter: This service collects data from our node/VM/host
-   and exposes the data through an HTTP API. 
+   and exposes the data through an HTTP server. 
 1. Prometheus server: The prometheus server collects the data from a list of
    targets (node_exporter), and stores it in a timeseries database.
-1. Grafana: Hosts a dashboard to visualize the infrastructure cost metrics.
+1. Grafana: Hosts a dashboard to visualize your infrastructure's costs.
 
-To download the node exporter, we download the compressed binary file,
-uncompress it, and execute the binary:
+To start the node exporter, we download the compressed binary file, uncompress
+it, and execute its binary:
 ```bash
 wget -O local-setup/node_exporter.tar.gz https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz
 mkdir local-setup/node-exporter
 tar xvfz local-setup/node_exporter.tar.gz --directory local-setup/node-exporter --strip-components=1
-./local-setup/node-exporter/node_exporter "--web.listen-address=[0.0.0.0]:9100"
+./local-setup/node-exporter/node_exporter "--web.listen-address=[0.0.0.0]:9100" &
 ```
 
 If we run the following command, we should see a list of metrics the
@@ -64,9 +64,9 @@ placeholder to the ip you use to ssh into your VM):
 
 You should see a login page. Type `admin` for the username and password.
 
-First, on the side panel, click on `Connections` > `Data Sources`. Click on `+
-Add new data source` and click on `Prometheus`. Fill in the `Prometheus server
-url` field with `http://prometheus:9090`. To finalize click on `Save & test`
+On the side panel, click on `Connections` > `Data Sources`. Click on `+ Add new
+data source` and click on `Prometheus`. Fill in the `Prometheus server url`
+field with `http://prometheus:9090`. To finalize click on `Save & test`
 
 Now open the dashboards view, and click on `New` > `Import`. You should see an
 input box that has as label "Import via panel json". In that box, place the
@@ -310,31 +310,43 @@ following json content, and click `Load` > `Import`:
 
 You should now see 2 visualizations, albeit with an error. To fix the error,
 edit each of the visualizations, and change the data source to the one you just
-created. Update the query by adding or removing any white-space, and click the
-refresh button at the top right corner of the visualization and the graph data
-should now be available.
+created, update the query by adding or removing any white-space, and click the
+refresh button at the top right corner of the visualization. The graph data
+should now become available.
+
+The following queries provide you with some insight with regards to the total
+compute and memory costs of your infrastructure, which are also the queries
+that we just loaded in grafana: 
+
+- CPU: 
+  ```promql
+  node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes
+  ```
+- Memory:
+  ```promql
+  (sum(rate(node_cpu_seconds_total{mode!="idle"}[2m])) / count(node_cpu_seconds_total{mode="idle"})) * 100 
+  ```
 
 # k8s Setup
 
-Despite all the advantages of managing containerized applications in Kubernetes,
-it also adds some additional complexity to infering the state of our
-applications in this distributed environment. 
-
-Luckily, thanks to prometheus-community, there are some automated deployment
+Despite all the advantages of managing containerized applications in
+Kubernetes, infering the state of our distributed components becomes more
+complex. To facilitate creating a monitoring infrastructure for a k8s
+environment, the prometheus-community provides some automated deployment
 **charts** that deploy the same monitoring infrastructure as in the previous
-section in k8s. For this, we will use helm charts.   
+section in k8s with some additional components to monitor container metrics.
 
-For this part, make sure minikube is running: 
+Make sure minikube is running: 
 ```bash
 minikube start
 ```
 
-First, let's install helm: 
+Install helm: 
 ```bash
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ```
 
-Test running helm with:
+Verify whether helm is installed with:
 ```bash
 helm version
 ```
@@ -395,14 +407,16 @@ With regards to the credentials, the username is `admin` and password is the
 output of the last command you executed `kubectl get secrets ...`.
 
 The following steps are similar to what we have done in the local-setup. Add a
-prometheus datasource that with the `Prometheus server url` field filled to
+prometheus datasource with the `Prometheus server url` field filled to
 `http://<your-vm-ip>:3001`.
 
 We will now explore some of the different metrics exposed by the
 prometheus-server deployed in our k8s cluster. Our goal will be to analyze how
 one of our serverless functions is behaving while performing a load test.
 
-Let's first create the service we will track:
+Let's use the service we created in our `openfaas` session that either adds a
+researcher to our `experiment.researcher` table, or lists the researchers in
+our table:
 ```bash
 kubectl apply -f ../openfaas/python-db/postgre-db.yml
 cd ../openfaas && faas-cli up -f python-db.yml && cd -
@@ -413,13 +427,13 @@ Install our load generator:
 arkade get hey
 ```
 
-Now open another ssh session. On the first session, run the following read
-load:
+You may now start your load generatore. This command creates many read
+requests to our database, 
 ```bash
 hey -t 10 -z 1m -c 5 -q 5 \
     "http://localhost:8080/function/python-db"
 ```
-and on the second, run the write load generator:
+whereas this command generates many writes:
 ```bash
 hey -t 10 -z 1m -c 5 -q 5 -m POST \
     "http://localhost:8080/function/python-db?researcher=test@uu.nl"
@@ -437,9 +451,10 @@ network and disk might have an impact on your service's latency.
 
 I would recommend you try your own queries to start getting a feel of what sort
 of metrics are available. However, here are a few queries for you to try out
-(one per resource). For more information on container related metrics, read
+(For more information on container related metrics, read
 [this](https://blog.freshtracks.io/a-deep-dive-into-kubernetes-metrics-part-3-container-resource-metrics-361c5ee46e66)
-link.
+link):
+
 
 - CPU - Show the amount of CPU used in seconds by our postgre-db pods:
   ```promql
