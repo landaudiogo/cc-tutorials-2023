@@ -37,6 +37,7 @@ data:
   POSTGRES_PASSWORD: psltest
   db-init: |
     CREATE SCHEMA experiment;
+    DROP TABLE IF EXISTS experiment.researcher;
     CREATE TABLE experiment.researcher (id SERIAL PRIMARY KEY, email TEXT);
 
 
