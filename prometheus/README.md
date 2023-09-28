@@ -59,7 +59,7 @@ cd local-setup && docker compose up -d && cd -
 Open your browser and insert the following link (change the `<your-vm-ip>`
 placeholder to the ip you use to ssh into your VM):
 ```
-<your-vm-ip>:5010
+<your-vm-ip>:3009
 ```
 
 You should see a login page. Type `admin` for the username and password.
@@ -396,7 +396,7 @@ output of the last command you executed `kubectl get secrets ...`.
 
 The following steps are similar to what we have done in the local-setup. Add a
 prometheus datasource that with the `Prometheus server url` field filled to
-`http://<your-vm-ip>:9090`.
+`http://<your-vm-ip>:3001`.
 
 We will now explore some of the different metrics exposed by the
 prometheus-server deployed in our k8s cluster. Our goal will be to analyze how
@@ -405,7 +405,7 @@ one of our serverless functions is behaving while performing a load test.
 Let's first create the service we will track:
 ```bash
 kubectl apply -f ../openfaas/python-db/postgre-db.yml
-faas-cli up -f ../openfaas/python-db.yml
+cd ../openfaas && faas-cli up -f python-db.yml && cd -
 ```
 
 Install our load generator:
@@ -416,12 +416,12 @@ arkade get hey
 Now open another ssh session. On the first session, run the following read
 load:
 ```bash
-hey -t 10 -z 1m -c 20 -q 5 \
+hey -t 10 -z 1m -c 5 -q 5 \
     "http://localhost:8080/function/python-db"
 ```
 and on the second, run the write load generator:
 ```bash
-hey -t 10 -z 1m -c 20 -q 5 -m POST \
+hey -t 10 -z 1m -c 5 -q 5 -m POST \
     "http://localhost:8080/function/python-db?researcher=test@uu.nl"
 ```
 

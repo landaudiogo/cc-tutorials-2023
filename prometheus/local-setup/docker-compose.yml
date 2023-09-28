@@ -8,12 +8,12 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     ports: 
-      - 9090:9090
+      - 3008:9090
 
   grafana: 
     image: grafana/grafana-enterprise
     ports: 
-      - 5010:3000
+      - 3009:3000
     volumes: 
       - grafana-storage:/var/lib/grafana
 
