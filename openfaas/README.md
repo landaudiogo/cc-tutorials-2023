@@ -56,7 +56,7 @@ minikube addons enable registry
 ```
 followed by:
 ```bash
-docker run --rm -it --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
+docker run -d --rm -it --network=host alpine ash -c "apk add socat && socat TCP-LISTEN:5000,reuseaddr,fork TCP:$(minikube ip):5000"
 ```
 
 If you'd like to use your personal container registry in dockerhub for example,
