@@ -318,11 +318,11 @@ The following queries provide you with some insight with regards to the total
 compute and memory costs of your infrastructure, which are also the queries
 that we just loaded in grafana: 
 
-- CPU: 
+- Memory:
   ```promql
   node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes
   ```
-- Memory:
+- CPU: 
   ```promql
   (sum(rate(node_cpu_seconds_total{mode!="idle"}[2m])) / count(node_cpu_seconds_total{mode="idle"})) * 100 
   ```
